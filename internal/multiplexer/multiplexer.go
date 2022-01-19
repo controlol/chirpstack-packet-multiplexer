@@ -323,11 +323,6 @@ func (m *Multiplexer) forwardUplinkPacket(gatewayID string, up udpPacket) error 
 }
 
 func (m *Multiplexer) forwardPullResp(backend, gatewayID string, up udpPacket) error {
-	addr, err := m.getGateway(gatewayID)
-	if err != nil {
-		return errors.Wrap(err, "get gateway error")
-	}
-
 	if m.backendIsUplinkOnly(backend) {
 		log.WithFields(log.Fields{
 			"packet_type": PullResp,
@@ -337,14 +332,33 @@ func (m *Multiplexer) forwardPullResp(backend, gatewayID string, up udpPacket) e
 		return nil
 	}
 
-	log.WithFields(log.Fields{
-		"from":        backend,
-		"to":          addr,
-		"packet_type": PullResp,
-		"gateway_id":  gatewayID,
-	}).Info("forwarding packet to gateway")
-	if _, err := m.conn.WriteToUDP(up.data, addr); err != nil {
-		return errors.Wrap(err, "write to udp error")
+	if gatewayID == "*" {
+		for gwID, addr := range m.gateways {
+			log.WithFields(log.Fields{
+				"from":        backend,
+				"to":          addr,
+				"packet_type": PullResp,
+				"gateway_id":  gwID,
+			}).Info("forwarding packet to gateway")
+			if _, err := m.conn.WriteToUDP(up.data, addr); err != nil {
+				return errors.Wrap(err, "write to udp error")
+			}
+		}
+	} else {
+		addr, err := m.getGateway(gatewayID)
+		if err != nil {
+			return errors.Wrap(err, "get gateway error")
+		}
+
+		log.WithFields(log.Fields{
+			"from":        backend,
+			"to":          addr,
+			"packet_type": PullResp,
+			"gateway_id":  gatewayID,
+		}).Info("forwarding packet to gateway")
+		if _, err := m.conn.WriteToUDP(up.data, addr); err != nil {
+			return errors.Wrap(err, "write to udp error")
+		}
 	}
 
 	return nil
