@@ -130,6 +130,29 @@ func (m *Multiplexer) isClosed() bool {
 func (m *Multiplexer) setGateway(gatewayID string, addr *net.UDPAddr) error {
 	m.Lock()
 	defer m.Unlock()
+
+	// add real gateway to catch-all host
+	for host, backend := range m.backends {
+		if conn, ok := backend["*"]; ok {
+			if _, ok := backend[gatewayID]; !ok {
+				log.WithFields(log.Fields{
+					"host":    host,
+					"gateway": gatewayID,
+				}).Info("adding to gateway to host")
+
+				backend[gatewayID] = conn
+				go func(backend, gatewayID string, conn *net.UDPConn) {
+					m.wg.Add(1)
+					err := m.readDownlinkPackets(backend, gatewayID, conn)
+					if !m.isClosed() {
+						log.WithError(err).Error("read udp packets error")
+					}
+					m.wg.Done()
+				}(host, gatewayID, conn)
+			}
+		}
+	}
+
 	m.gateways[gatewayID] = addr
 	return nil
 }
