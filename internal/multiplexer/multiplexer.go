@@ -61,6 +61,12 @@ func New(c Config) (*Multiplexer, error) {
 				"host":        backend.Host,
 				"uplink_only": backend.UplinkOnly,
 			}).Info("dial udp")
+
+			if gatewayID == "*" {
+				m.backends[backend.Host][gatewayID] = nil
+				continue
+			}
+
 			conn, err := net.DialUDP("udp", nil, addr)
 			if err != nil {
 				return nil, errors.Wrap(err, "dial udp error")
@@ -72,16 +78,14 @@ func New(c Config) (*Multiplexer, error) {
 
 			m.backends[backend.Host][gatewayID] = conn
 
-			if gatewayID != "*" {
-				go func(backend, gatewayID string, conn *net.UDPConn) {
-					m.wg.Add(1)
-					err := m.readDownlinkPackets(backend, gatewayID, conn)
-					if !m.isClosed() {
-						log.WithError(err).Error("read udp packets error")
-					}
-					m.wg.Done()
-				}(backend.Host, gatewayID, conn)
-			}
+			go func(backend, gatewayID string, conn *net.UDPConn) {
+				m.wg.Add(1)
+				err := m.readDownlinkPackets(backend, gatewayID, conn)
+				if !m.isClosed() {
+					log.WithError(err).Error("read udp packets error")
+				}
+				m.wg.Done()
+			}(backend.Host, gatewayID, conn)
 		}
 	}
 
@@ -133,8 +137,18 @@ func (m *Multiplexer) setGateway(gatewayID string, addr *net.UDPAddr) error {
 
 	// add real gateway to catch-all host
 	for host, backend := range m.backends {
-		if conn, ok := backend["*"]; ok {
+		if _, ok := backend["*"]; ok {
 			if _, ok := backend[gatewayID]; !ok {
+				addr, err := net.ResolveUDPAddr("udp", host)
+				if err != nil {
+					return errors.Wrap(err, "resolve udp addr error")
+				}
+
+				conn, err := net.DialUDP("udp", nil, addr)
+				if err != nil {
+					return errors.Wrap(err, "dial udp error")
+				}
+
 				log.WithFields(log.Fields{
 					"host":    host,
 					"gateway": gatewayID,
@@ -323,7 +337,7 @@ func (m *Multiplexer) handlePullData(gatewayID string, up udpPacket) error {
 func (m *Multiplexer) forwardUplinkPacket(gatewayID string, up udpPacket) error {
 	for host, gwIDs := range m.backends {
 		for gwID, conn := range gwIDs {
-			if gwID == gatewayID || gwID == "*" {
+			if gwID == gatewayID {
 				pt, err := GetPacketType(up.data)
 				if err != nil {
 					return errors.Wrap(err, "get packet-type error")
