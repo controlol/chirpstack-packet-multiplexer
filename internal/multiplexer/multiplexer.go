@@ -298,7 +298,7 @@ func (m *Multiplexer) handlePullData(gatewayID string, up udpPacket) error {
 func (m *Multiplexer) forwardUplinkPacket(gatewayID string, up udpPacket) error {
 	for host, gwIDs := range m.backends {
 		for gwID, conn := range gwIDs {
-			if gwID == gatewayID {
+			if gwID == gatewayID || gwID == "*" {
 				pt, err := GetPacketType(up.data)
 				if err != nil {
 					return errors.Wrap(err, "get packet-type error")
@@ -312,7 +312,7 @@ func (m *Multiplexer) forwardUplinkPacket(gatewayID string, up udpPacket) error 
 				if _, err := conn.Write(up.data); err != nil {
 					log.WithError(err).WithFields(log.Fields{
 						"host":       host,
-						"gateway_id": gwID,
+						"gateway_id": gatewayID,
 					}).Error("udp write error")
 				}
 			}
