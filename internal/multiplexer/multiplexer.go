@@ -72,14 +72,16 @@ func New(c Config) (*Multiplexer, error) {
 
 			m.backends[backend.Host][gatewayID] = conn
 
-			go func(backend, gatewayID string, conn *net.UDPConn) {
-				m.wg.Add(1)
-				err := m.readDownlinkPackets(backend, gatewayID, conn)
-				if !m.isClosed() {
-					log.WithError(err).Error("read udp packets error")
-				}
-				m.wg.Done()
-			}(backend.Host, gatewayID, conn)
+			if gatewayID != "*" {
+				go func(backend, gatewayID string, conn *net.UDPConn) {
+					m.wg.Add(1)
+					err := m.readDownlinkPackets(backend, gatewayID, conn)
+					if !m.isClosed() {
+						log.WithError(err).Error("read udp packets error")
+					}
+					m.wg.Done()
+				}(backend.Host, gatewayID, conn)
+			}
 		}
 	}
 
