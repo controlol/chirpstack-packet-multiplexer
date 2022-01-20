@@ -125,6 +125,10 @@ bind="0.0.0.0:1700"
 # ]
 ```
 
+### Forward all gateways
+
+All gateways can be forwarded to a backend by entering `*` as the gateway ID. Doing this will allow all gateways that connect to the multiplexer to the specified backend.
+
 ## Example docker compose setup
 
 If you built the docker image for the packet multiplexer as above and wish to
