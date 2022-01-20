@@ -63,6 +63,9 @@ func New(c Config) (*Multiplexer, error) {
 			}).Info("dial udp")
 
 			if gatewayID == "*" {
+				if _, ok := m.backends[backend.Host]; !ok {
+					m.backends[backend.Host] = make(map[string]*net.UDPConn)
+				}
 				m.backends[backend.Host][gatewayID] = new(net.UDPConn)
 				continue
 			}
