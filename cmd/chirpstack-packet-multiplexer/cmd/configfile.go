@@ -50,6 +50,9 @@ bind="{{ .PacketMultiplexer.Bind }}"
 #   "0101010101010101",
 #   "0202020202020202",
 # ]
+#
+# It is possible to forward all gateways to a backend by entering
+# "*" as the gateway ID, all received packets will be forwarded
 {{ range $index, $element := .PacketMultiplexer.Backends }}
 [[packet_multiplexer.backend]]
 host="{{ $element.Host }}"
