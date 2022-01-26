@@ -116,9 +116,11 @@ func (m *Multiplexer) Close() error {
 
 	log.Info("closing backend connections")
 	for _, gws := range m.backends {
-		for _, conn := range gws {
-			if err := conn.Close(); err != nil {
-				return errors.Wrap(err, "close udp connection error")
+		for gwID, conn := range gws {
+			if gwID != "*" {
+				if err := conn.Close(); err != nil {
+					return errors.Wrap(err, "close udp connection error")
+				}
 			}
 		}
 	}
